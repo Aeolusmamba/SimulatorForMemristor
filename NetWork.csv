@@ -1,0 +1,12 @@
+IFM height,IFM width,IFM channel depth,kernel height,kernel width,kernel depth,activation,max pooling,avg pooling,stride,padding,comment
+28,28,1,3,3,128,relu,0,0,1,1,
+28,28,128,3,3,128,relu,1,0,1,1,
+28,28,128,2,2,128,,0,0,2,0,max-pooling layer
+14,14,128,3,3,256,relu,0,0,1,1,
+14,14,256,3,3,256,relu,1,0,1,1,
+14,14,256,2,2,256,,0,0,2,0,max-pooling layer
+7,7,256,3,3,512,relu,0,0,1,1,
+7,7,512,3,3,512,relu,1,0,1,1,
+7,7,512,3,3,512,,0,0,2,0,max-pooling layer
+1,1,4608,1,1,1024,,0,0,1,0,fully-connected
+1,1,1024,1,1,10,,0,0,1,0,fully-connected
