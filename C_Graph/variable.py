@@ -1,3 +1,5 @@
+import math
+
 import numpy as np
 from util.util import initializer
 
@@ -40,7 +42,8 @@ class Variable(object):
     def eval(self):
         for operator in self.parent:
             GLOBAL_VARIABLE_SCOPE[operator].forward()
-        self.wait_bp = True
+        if hasattr(self, 'wait_bp'):
+            self.wait_bp = True
         return self.data
 
     def diff_eval(self):
@@ -54,23 +57,22 @@ class Variable(object):
         return self.diff
 
     def apply_gradient(self, learning_rate:float, decay_rate:float, batch_size=1):
-        self.data *= (1 - decay_rate)
+        self.data *= (1 - decay_rate)  # L2 regularization
         if self.method == 'SGD':
-            learning_rate = learning_rate
             self.data -= (learning_rate * self.diff / batch_size)
-            self.diff *= 0
+            self.diff = 0
 
         elif self.method == 'Momentum':
             self.mtmp = self.momentum * self.mtmp + self.diff / batch_size
             self.data -= learning_rate * self.mtmp
-            self.diff *= 0
+            self.diff = 0
 
         elif self.method == 'NGA':
             self.mtmp = self.momentum * self.mtmp + self.diff / batch_size + self.momentum * (
                     self.diff - self.lastdiff) / batch_size
             self.data -= learning_rate * self.mtmp
             self.lastdiff = self.diff
-            self.diff *= 0
+            self.diff = 0
 
         elif self.method == 'Adam':
             self.t += 1
@@ -78,7 +80,7 @@ class Variable(object):
             self.m_t = self.beta1 * self.m_t + (1 - self.beta1) * self.diff / batch_size
             self.v_t = self.beta2 * self.v_t + (1 - self.beta2) * ((self.diff / batch_size) ** 2)
             self.data -= learning_rate_t * self.m_t / (self.v_t + self.epsilon) ** 0.5
-            self.diff *= 0
+            self.diff = 0
 
         else:
             raise Exception('No apply_gradient method: %s' % self.method)
@@ -118,6 +120,6 @@ def get_by_name(name):
 
 
 if __name__ == "__main__":
-    shape = (3, 3, 12, 24)
+    shape = [3, 3, 12, 24]
     a = Variable(shape, 'a')
     print(a.name)

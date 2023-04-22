@@ -5,7 +5,7 @@ from variable import Variable, GLOBAL_VARIABLE_SCOPE
 class Operator(object):
     def __init__(self, name, input_variables, output_variables):
 
-        # init input check
+        # initial input check
         if GLOBAL_VARIABLE_SCOPE.has_key(name):
             raise Exception("Operator %s has already exists !" % name)
 
@@ -75,7 +75,7 @@ def register_graph(input_variable, output_variable, operator):
             operator.parent.append(input.name)
             operator.child.append(output_variable.name)
 
-    elif len(output_variable) > 1 and len(input_variable) > 1:
+    elif len(input_variable) > 1 and len(output_variable) > 1:
         for input in input_variable:
             input.child.append(operator.name)
             operator.parent.append(input.name)

@@ -1,61 +1,56 @@
 import numpy as np
-import layer
-import activations
+from C_Graph.variable import Variable, GLOBAL_VARIABLE_SCOPE
+from C_Graph.operator import Operator
+import activations2
 
 
-class Linear(layer):
-    def __init__(self, shape, in_dim, out_dim, act=None, bias=False):
-        self.in_dim = in_dim
+class Linear(Operator):
+    def __init__(self, input_variable: Variable, name: str, out_dim: int, bias=False, act='None'):
+        if not isinstance(input_variable, Variable):
+            raise Exception("Operator Linear name: %s's input_variable is not an instance of Variable" % self.name)
+        self.input_variable = input_variable
         self.out_dim = out_dim
         self.bias = bias
-        self.weight = np.random.randn(out_dim, in_dim)
+        self.act = act
+        self.weight = Variable([out_dim, self.input_variable.shape[1]], name='weight', scope=name, grad=True,
+                               learnable=True)
         if self.bias:
-            weight_bias = np.random.randn(out_dim, 1)
-            self.weight = np.c_(weight_bias, self.weight)
-        if act == "relu":
-            self.act = activations.relu
-            self.dact = activations.drelu
-        elif act == "tanh":
-            self.act = activations.tanh
-            self.dact = activations.dtanh
-        elif act == "sigmoid":
-            self.act = activations.sigmoid
-            self.dact = activations.dsigmoid
-        elif act == "softmax":
-            self.act = activations.softmax
+            self.weight_bias = Variable([out_dim], name='weight_bias', scope=name, grad=True, learnable=True)
+
+
+        self.output_variable = Variable([self.input_variable.shape[0], self.out_dim], name='output', scope=name)
+        super(Linear, self).__init__(name, self.input_variable, self.output_variable)
+
+    def forward(self):
+        if self.wait_forward:
+            for parent in self.parent:
+                GLOBAL_VARIABLE_SCOPE[parent].eval()
+            self.output_variable.data = np.dot(self.input_variable.data, self.weight.data.T)
+            if self.bias:
+                self.output_variable.data += self.weight_bias.data
+            self.wait_forward = False
+            return
         else:
-            self.act = None
-        # store the input and output of this layer for future backward
-        self.X_in_history = []
-        self.y_out_history = []
+            pass
 
-        self.grad = None  # the gradient of each parameter of this layer
 
-    def forward(self, X):
-        if self.bias:
-            bias = np.ones((X.shape[0], 1))
-            X = np.c_(bias, X)  # concat
-        out = np.dot(X * self.weight.T)  # use dot function instead of *(element-wise mul)
-        if self.act:
-            out = self.act(out)
-        self.X_in_history.append(X)
-        self.y_out_history.append(out)
-        return out
-
-    def backward(self, dy):
+    def backward(self):
         """
-        Input: dy: the delta of this layer
-        Output: dx: the delta of the previous layer (to compute)
+        :input: self.output_variable.diff -> dy: the delta of this layer
+        :return: dx: self.input_variable.diff -> the delta of the previous layer (to compute)
         """
-        X_in = self.X_in_history.pop()
-        y_out = self.y_out_history.pop()
+        if self.wait_forward:
+            pass
+        else:
+            for child in self.child:
+                GLOBAL_VARIABLE_SCOPE[child].diff_eval()
 
-        if self.dact:  # calculate the delta of activation
-            dy = dy * self.dact(y_out)
+            # calculate the gradient of weight (and bias)
+            self.weight.diff = np.dot(self.output_variable.diff.T, self.input_variable.data)
+            if self.bias:
+                self.weight_bias.diff = np.sum(self.output_variable.diff, axis=0)
 
-        # calculate the gradient
-        self.grad = np.dot(dy, X_in.T)
-
-        # compute the delta of previous layer
-        dx = np.dot(self.weight.T, dy)
-        return dx
+            # compute the delta of previous layer
+            self.input_variable.diff = np.dot(self.output_variable.diff, self.weight.data)
+            self.wait_forward = True
+            return
