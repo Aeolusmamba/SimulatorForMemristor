@@ -45,6 +45,20 @@
             </Attribute>
           </value>
         </entry>
+        <entry key="\DNN_NeuroSim_V2\Training_pytorch\delta_dist.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\Dataset\dataloader.py">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
         <entry key="\Layer\NetWork.csv">
           <value>
             <Attribute>
@@ -88,6 +102,13 @@
           </value>
         </entry>
         <entry key="\Layer\maxpool.py">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\Layer\pooling.py">
           <value>
             <Attribute>
               <option name="separator" value="," />
@@ -164,10 +185,24 @@
             </Attribute>
           </value>
         </entry>
+        <entry key="\train2.py">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
         <entry key="\util\util.py">
           <value>
             <Attribute>
               <option name="separator" value=":" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\util\wage_quantizer.py">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
             </Attribute>
           </value>
         </entry>

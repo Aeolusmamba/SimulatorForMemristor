@@ -1,13 +1,10 @@
-import layer
 import numpy as np
-import activations2
-import math
 from C_Graph.variable import Variable, GLOBAL_VARIABLE_SCOPE
 from C_Graph.operator import Operator
 
 
 class Conv2D(Operator):
-    def __init__(self, kernel_shape: list, input_variable: Variable, name: str, stride=1, padding=0, bias=False):
+    def __init__(self, kernel_shape: list, input_variable: Variable, name: str, hyper_p: dict, stride=1, padding=0, bias=False):
         # kernel_shape: [out_channel, in_channel, kernel_height, kernel_width]
         for i in kernel_shape:
             if not isinstance(i, int):
@@ -28,6 +25,7 @@ class Conv2D(Operator):
         self.batch_size = self.in_shape[0]
         self.X_h = self.in_shape[2]
         self.X_w = self.in_shape[3]
+        self.hyper_p = hyper_p
 
         self.weight = Variable(kernel_shape, scope=name, name='weight', grad=True, learnable=True)
         if self.bias:
@@ -47,19 +45,6 @@ class Conv2D(Operator):
         else:
             self.padding_h = self.padding_w = 0
 
-        # if act == "relu":
-        #     self.act = activations.relu
-        #     self.dact = activations.drelu
-        # elif act == "tanh":
-        #     self.act = activations.tanh
-        #     self.dact = activations.dtanh
-        # elif act == "sigmoid":
-        #     self.act = activations.sigmoid
-        #     self.dact = activations.dsigmoid
-        # elif act == "softmax":
-        #     self.act = activations.softmax
-        # else:
-        #     self.act = None
 
         output_shape = [self.batch_size,
                         self.out_channel,
@@ -78,6 +63,7 @@ class Conv2D(Operator):
             else:
                 self._conv(self.input_variable, self.output_variable, self.weight.data)
             self.wait_forward = False
+            # print(f"{self.name} output: ", self.output_variable.data)
             return
         else:
             pass
@@ -88,7 +74,10 @@ class Conv2D(Operator):
         else:
             for child in self.child:
                 GLOBAL_VARIABLE_SCOPE[child].diff_eval()
-            self._deconv(self.input_variable, self.output_variable, self.weight, self.weight_bias)
+            if self.bias:
+                self._deconv(self.input_variable, self.output_variable, self.weight, self.weight_bias)
+            else:
+                self._deconv(self.input_variable, self.output_variable, self.weight)
             self.wait_forward = True
             return
 
@@ -115,9 +104,10 @@ class Conv2D(Operator):
         conv_out = np.zeros(output_variable.data.shape)
         for i in range(self.batch_size):
             col_x = self.im2col(X[i])
+            # print("shape: ", col_x.shape)
             self.col_X.append(col_x)
             if self.bias:
-                conv_out[i] = np.reshape(np.dot(row_weight, col_x.T) + weight_bias[:, np.newaxis, np.newaxis],
+                conv_out[i] = np.reshape(np.dot(row_weight, col_x.T) + weight_bias[:, np.newaxis],
                                          output_variable.data[0].shape)
             else:
                 conv_out[i] = np.reshape(np.dot(row_weight, col_x.T), output_variable.data[0].shape)
@@ -132,25 +122,35 @@ class Conv2D(Operator):
         for i in range(self.batch_size):
             weight.diff += np.reshape(np.dot(col_eta[i], self.col_X[i]), self.weight.shape)
         if self.bias:
+            # print(f"{self.name}: col_eta", col_eta)
             weight_bias.diff += np.sum(col_eta, axis=(0, 2))
 
         # step 2: calculate the delta passed to the previous layer
-        pad_eta = np.pad(eta, (0, 0), (0, 0),
-                         (self.stride_h * (self.X_h - 1) + self.kernel_height - eta.shape[2]) // 2,
-                         (self.stride_w * (self.X_w - 1) + self.kernel_width - eta.shape[3]) // 2,
+        # print("which layer: ", self.name)
+        # print("eta shape: ", eta.shape)
+        # print("pad_width: ", (self.stride_h * (eta.shape[2] - 1) + self.kernel_height - self.X_h) // 2)
+        pad_eta = np.pad(eta, ((0, 0), (0, 0),
+                               ((self.stride_h * (eta.shape[2] - 1) + self.kernel_height - self.X_h) // 2,
+                                (self.stride_h * (eta.shape[2] - 1) + self.kernel_height - self.X_h) // 2),
+                               ((self.stride_w * (eta.shape[3] - 1) + self.kernel_width - self.X_w) // 2,
+                                (self.stride_w * (eta.shape[3] - 1) + self.kernel_width - self.X_w) // 2)),
                          'constant', constant_values=0)
         col_pad_eta = np.array([self.im2col(pad_eta[i]) for i in range(self.batch_size)])
         # rotate weights 180 degree
-        flipped_weight = self.rotate180(self.weight)
+        flipped_weight = self.rotate180(weight)
         # transpose the weight
-        flipped_weight = flipped_weight.swapaxes(0, 1)
+        flipped_weight = flipped_weight.swapaxes(0, 1)  # change positions of out_channel and in_channel
         col_flip_weight = flipped_weight.reshape((self.in_channel, -1))
+        # if self.name == 'conv_5':
+        #     print("col_flip_weight: ", col_flip_weight)
 
         next_eta = []
         for i in range(self.batch_size):
             next_eta_i = np.reshape(np.dot(col_flip_weight, col_pad_eta[i].T), (self.in_channel, self.X_h, self.X_w))
             next_eta.append(next_eta_i)
         next_eta = np.array(next_eta)
+        # if self.name == 'conv_5':
+        #     print("next_eta: ", next_eta)
         input_variable.diff = next_eta
         return next_eta
 
@@ -161,10 +161,12 @@ class Conv2D(Operator):
         :return col_x: with shape [((H-kernel_height) / stride_h + 1) * ((W-kernel_width) / stride_w + 1), in_channel * kernel_height * kernel_width]
         """
         col_x = []
-        for i in range(0, x.shape[1], self.stride_h):
-            for j in range(0, x.shape[2], self.stride_w):
+        for i in range(0, x.shape[1]-self.kernel_height+1, self.stride_h):
+            for j in range(0, x.shape[2]-self.kernel_width+1, self.stride_w):
                 col = x[:, i:i + self.kernel_height, j:j + self.kernel_width].reshape(
-                    [-1])  # C * kernel_height * kernel_width
+                    -1)  # C * kernel_height * kernel_width
+                # if self.name == 'conv_5':
+                #     print("x[:, i:i + self.kernel_height, j:j + self.kernel_width].shape", x[:, i:i + self.kernel_height, j:j + self.kernel_width].shape)
                 col_x.append(col)
         col_x = np.array(col_x)
         return col_x
@@ -174,7 +176,7 @@ class Conv2D(Operator):
         for out_channel in range(weight.shape[0]):
             for in_channel in range(weight.shape[1]):
                 rot_weight[out_channel, in_channel, :, :] = np.flipud(
-                    np.fliplr(rot_weight[out_channel, in_channel, :, :]))
+                    np.fliplr(weight.data[out_channel, in_channel, :, :]))
         return rot_weight
 
 

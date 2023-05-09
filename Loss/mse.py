@@ -31,6 +31,6 @@ class MSE(Operator):
                 GLOBAL_VARIABLE_SCOPE[child].diff_eval()
             y_pred = self.input_variable[0].data
             y_truth = self.input_variable[1].data
-            self.input_variable.diff = np.mean(y_pred - y_truth)
+            self.input_variable[0].diff = np.mean(y_pred - y_truth)
             self.wait_forward = True
             return

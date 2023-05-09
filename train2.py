@@ -20,7 +20,7 @@ parser.add_argument('--desc_lr_epoch', default='200,250', help='how many epochs 
 parser.add_argument('--desc_lr_scale', type=int, default=8, help='descending lr scale')
 parser.add_argument('--log_batch_interval', type=int, default=100, help='how many batches to wait before logging training status')
 parser.add_argument('--test_epoch_interval', type=int, default=1, help='how many epochs to wait before another test')
-parser.add_argument('--log_dir', default='log', help='which directory to save the log information')
+parser.add_argument('--log_dir', default='record', help='which directory to save the record information')
 parser.add_argument('--weight_precision', type=int, default=5, help='weight precision')
 parser.add_argument('--activation_precision', type=int, default=8, help='activation precision')
 parser.add_argument('--error_precision', type=int, default=8, help='error precision')
@@ -114,16 +114,16 @@ if __name__ == '__main__':
                 optimizer.step()
 
                 if batch_idx % args.log_batch_interval == 0 and batch_idx > 0:
-                    pred = output.data.max(1)[1]  # get the index of the max log-probability
+                    pred = output.data.max(1)[1]  # get the index of the max record-probability
                     # print("output.data.max(1): ", output.data.max(1))
                     correct = pred.cpu().eq(target_clone).sum()
                     acc = float(correct) * 1.0 / len(data)
                     print('Train epoch: {} ({}/{}); Loss: {:.6f}; Acc: {:.4f}; lr: {:.2e}'.format(
-                        epoch, batch_idx * len(data), len(train_loader.dataset),
+                        epoch, batch_idx * len(data), len(train_loader.dataset),  # len(train_loader.dataset) == data_size
                         loss.data, acc, optimizer.param_groups[0]['lr']))
             elapse_time = time.time() - begin_t
             speed_epoch = elapse_time / (epoch + 1)
-            speed_batch = speed_epoch / len(train_loader)
+            speed_batch = speed_epoch / len(train_loader)  # len(train_loader) == batch_size
             eta = speed_epoch * args.epochs - elapse_time  # estimated time of arrival
             print("Elapsed {:.2f} s, {:.2f} s/epoch, {:.2f} s/batch, eta {:.2f} s".format(
                 elapse_time, speed_epoch, speed_batch, eta

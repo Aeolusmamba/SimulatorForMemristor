@@ -1,4 +1,3 @@
-import layer
 import numpy as np
 from C_Graph.variable import Variable, GLOBAL_VARIABLE_SCOPE
 from C_Graph.operator import Operator
@@ -62,9 +61,13 @@ class MaxPooling(Operator):
         else:
             for child in self.child:
                 GLOBAL_VARIABLE_SCOPE[child].diff_eval()
-            self.input_variable.diff = np.repeat(
-                np.repeat(self.output_variable.diff, self.kernel_height, axis=2),
-                self.kernel_width, axis=3) * self.max_index
+            for n in range(self.batch_size):
+                for o in range(self.in_channel):
+                    for i in range(0, self.X_h-self.kernel_height+1, self.stride_h):
+                        for j in range(0, self.X_w-self.kernel_width+1, self.stride_w):
+                            self.input_variable.diff[n, o, i:i+self.kernel_height, j:j+self.kernel_width] += \
+                                self.output_variable.diff[n, o, i // self.stride_h, j // self.stride_w] * \
+                                self.max_index[n, o, i:i+self.kernel_height, j:j+self.kernel_width]
             self.wait_forward = True
             return
 
@@ -80,13 +83,13 @@ class MaxPooling(Operator):
 
         self.max_index = np.zeros(self.in_shape)  # using as a mask to record the location of the maximum element
         output = np.zeros(self.output_variable.shape)
-        for n in self.batch_size:
-            for o in self.in_channel:
-                for i in range(0, self.X_h, self.stride_h):
-                    for j in range(0, self.X_w, self.stride_w):
+        for n in range(self.batch_size):
+            for o in range(self.in_channel):
+                for i in range(0, self.X_h-self.kernel_height+1, self.stride_h):
+                    for j in range(0, self.X_w-self.kernel_width+1, self.stride_w):
                         output[n, o, i // self.stride_h, j // self.stride_w] = np.max(
-                            self.input_variable.data[n, o, i:i + self.stride_h, j:j + self.stride_w])
-                        max_index = np.argmax(self.input_variable.data[n, o, i:i + self.stride_h, j:j + self.stride_w])
+                            self.input_variable.data[n, o, i:i + self.kernel_height, j:j + self.kernel_width])
+                        max_index = np.argmax(self.input_variable.data[n, o, i:i + self.kernel_height, j:j + self.kernel_width])
                         self.max_index[n, o, i + max_index // self.kernel_height, j + max_index % self.kernel_width] = 1
         self.output_variable.data = output
         return
@@ -149,22 +152,25 @@ class AvgPooling(Operator):
         else:
             for child in self.child:
                 GLOBAL_VARIABLE_SCOPE[child].diff_eval()
-            self.input_variable.diff = np.repeat(
-                np.repeat(self.output_variable.data, self.kernel_height, axis=2),
-                self.kernel_width, axis=3
-            ) / (self.kernel_height * self.kernel_width)
+            scale = 1. / (self.kernel_width * self.kernel_height)
+            for n in range(self.batch_size):
+                for o in range(self.in_channel):
+                    for i in range(0, self.X_h-self.kernel_height+1, self.stride_h):
+                        for j in range(0, self.X_w-self.kernel_width+1, self.stride_w):
+                            self.input_variable.diff[n, o, i:i+self.kernel_height, j:j+self.kernel_width] += \
+                            self.output_variable.diff[n, o, i//self.kernel_height, j//self.kernel_width] * scale
             self.wait_forward = True
         return
 
 
     def _pool(self):
         output = np.zeros(self.output_variable.shape)
-        for n in self.batch_size:
-            for o in self.in_channel:  # in_channel == out_channel
-                for i in range(0, self.X_h, self.stride_h):
-                    for j in range(0, self.X_w, self.stride_w):
+        for n in range(self.batch_size):
+            for o in range(self.in_channel):  # in_channel == out_channel
+                for i in range(0, self.X_h-self.kernel_height+1, self.stride_h):
+                    for j in range(0, self.X_w-self.kernel_width+1, self.stride_w):
                         output[n, o, i // self.stride_h, j // self.stride_w] = np.mean(
-                            self.input_variable.data[n, o, i:i + self.stride_h, j:j + self.stride_w])
+                            self.input_variable.data[n, o, i:i + self.kernel_height, j:j + self.kernel_width])
         self.output_variable.data = output
         return
 

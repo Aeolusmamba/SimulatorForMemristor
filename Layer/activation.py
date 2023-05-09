@@ -74,6 +74,7 @@ class ReLU(Operator):
                 GLOBAL_VARIABLE_SCOPE[parent].eval()
             self.output_variable.data = np.maximum(self.input_variable.data, 0)
             self.wait_forward = False
+            # print(f"{self.name} output: ", self.output_variable.data)
             return
         else:
             pass
@@ -203,9 +204,9 @@ class Softmax(Operator):
         if self.wait_forward:
             for parent in self.parent:
                 GLOBAL_VARIABLE_SCOPE[parent].eval()
-            denominator = np.sum(np.exp(self.input_variable.data), axis=1)
+            denominator = np.sum(np.exp(self.input_variable.data - np.max(self.input_variable.data)), axis=1)
             denominator = denominator.reshape(denominator.size, 1)
-            self.output_variable.data = np.exp(self.input_variable.data) / denominator
+            self.output_variable.data = np.exp(self.input_variable.data - np.max(self.input_variable.data)) / denominator
             self.wait_forward = False
             return
         else:

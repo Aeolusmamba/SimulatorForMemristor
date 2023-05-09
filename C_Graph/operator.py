@@ -1,19 +1,19 @@
 import numpy as np
-from variable import Variable, GLOBAL_VARIABLE_SCOPE
+from C_Graph.variable import Variable, GLOBAL_VARIABLE_SCOPE
 
 
 class Operator(object):
     def __init__(self, name, input_variables, output_variables):
 
         # initial input check
-        if GLOBAL_VARIABLE_SCOPE.has_key(name):
+        if name in GLOBAL_VARIABLE_SCOPE:
             raise Exception("Operator %s has already exists !" % name)
 
         if not isinstance(input_variables, Variable) and not isinstance(input_variables[0], Variable):
-            raise Exception("Operator %s 's input_variables is not instance(or list) of Variable!")
+            raise Exception("Operator %s 's input_variables is not instance(or list) of Variable!" % name)
 
         if not isinstance(output_variables, Variable) and not isinstance(output_variables[0], Variable):
-            raise Exception("Operator %s 's output_variables is not instance(or list) of Variable!")
+            raise Exception("Operator %s 's output_variables is not instance(or list) of Variable!" % name)
 
         # register in GLOBAL_OP_SCOPE
         self.name = name
@@ -62,18 +62,18 @@ def register_graph(input_variable, output_variable, operator):
         operator.child.append(output_variable.name)
 
     elif isinstance(input_variable, Variable) and len(output_variable) > 1:
+        input_variable.child.append(operator.name)
+        operator.parent.append(input_variable.name)
         for output in output_variable:
-            input_variable.child.append(operator.name)
             output.parent.append(operator.name)
-            operator.parent.append(input_variable.name)
             operator.child.append(output.name)
 
     elif isinstance(output_variable, Variable) and len(input_variable) > 1:
+        output_variable.parent.append(operator.name)
+        operator.child.append(output_variable.name)
         for input in input_variable:
             input.child.append(operator.name)
-            output_variable.parent.append(operator.name)
             operator.parent.append(input.name)
-            operator.child.append(output_variable.name)
 
     elif len(input_variable) > 1 and len(output_variable) > 1:
         for input in input_variable:
@@ -84,4 +84,4 @@ def register_graph(input_variable, output_variable, operator):
             operator.child.append(output.name)
 
     else:
-        raise Exception('Operator name %s input,output list error' % operator.name)
+        raise Exception('Operator name %s input, output list error' % operator.name)

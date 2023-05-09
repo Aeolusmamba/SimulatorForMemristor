@@ -37,7 +37,7 @@ class Variable(object):
         if grad:
             self.diff = np.zeros(self.shape)
             self.wait_bp = True
-            self.learnable = learnable
+        self.learnable = learnable
 
     def eval(self):
         for operator in self.parent:
@@ -53,10 +53,9 @@ class Variable(object):
             self.wait_bp = False
         else:
             pass
-
         return self.diff
 
-    def apply_gradient(self, learning_rate:float, decay_rate:float, batch_size=1):
+    def update(self, learning_rate:float, decay_rate:float, batch_size=1):
         self.data *= (1 - decay_rate)  # L2 regularization
         if self.method == 'SGD':
             self.data -= (learning_rate * self.diff / batch_size)

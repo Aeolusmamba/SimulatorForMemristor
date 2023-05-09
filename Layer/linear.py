@@ -1,22 +1,20 @@
 import numpy as np
 from C_Graph.variable import Variable, GLOBAL_VARIABLE_SCOPE
 from C_Graph.operator import Operator
-import activations2
 
 
 class Linear(Operator):
-    def __init__(self, input_variable: Variable, name: str, out_dim: int, bias=False, act='None'):
+    def __init__(self, input_variable: Variable, name: str, out_dim: int, hyper_p: dict, bias=False):
         if not isinstance(input_variable, Variable):
             raise Exception("Operator Linear name: %s's input_variable is not an instance of Variable" % self.name)
         self.input_variable = input_variable
         self.out_dim = out_dim
+        self.hyper_p = hyper_p
         self.bias = bias
-        self.act = act
         self.weight = Variable([out_dim, self.input_variable.shape[1]], name='weight', scope=name, grad=True,
                                learnable=True)
         if self.bias:
             self.weight_bias = Variable([out_dim], name='weight_bias', scope=name, grad=True, learnable=True)
-
 
         self.output_variable = Variable([self.input_variable.shape[0], self.out_dim], name='output', scope=name)
         super(Linear, self).__init__(name, self.input_variable, self.output_variable)
@@ -29,6 +27,7 @@ class Linear(Operator):
             if self.bias:
                 self.output_variable.data += self.weight_bias.data
             self.wait_forward = False
+            # print(f"{self.name} output: ", self.output_variable.data)
             return
         else:
             pass

@@ -26,7 +26,8 @@ class CrossEntropy(Operator):
                 GLOBAL_VARIABLE_SCOPE[parent].eval()
             y_pred = self.input_variable[0].data
             label = self.input_variable[1].data
-            self.output_variable.data = -1 * np.mean(np.log(y_pred[label == 1]))
+            epsilon = 1e-5
+            self.output_variable.data = -1 * np.mean(np.log(y_pred[label == 1] + epsilon))
             self.wait_forward = False
             return
         else:
