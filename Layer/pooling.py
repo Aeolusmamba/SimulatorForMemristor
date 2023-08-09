@@ -1,6 +1,8 @@
 import numpy as np
 from C_Graph.variable import Variable, GLOBAL_VARIABLE_SCOPE
 from C_Graph.operator import Operator
+import numba
+from numba import jit
 
 
 class MaxPooling(Operator):
@@ -45,12 +47,13 @@ class MaxPooling(Operator):
         self.input_variable = input_variable
         super(MaxPooling, self).__init__(name, self.input_variable, self.output_variable)
 
-    def forward(self):
+    def forward(self, phase):
         if self.wait_forward:
             for parent in self.parent:
-                GLOBAL_VARIABLE_SCOPE[parent].eval()
+                GLOBAL_VARIABLE_SCOPE[parent].eval(phase)
             self._pool()
-            self.wait_forward = False
+            if phase == 'train':
+                self.wait_forward = False
             return
         else:
             pass
@@ -136,12 +139,13 @@ class AvgPooling(Operator):
         self.input_variable = input_variable
         super(AvgPooling, self).__init__(name, self.input_variable, self.output_variable)
 
-    def forward(self):
+    def forward(self, phase):
         if self.wait_forward:
             for parent in self.parent:
-                GLOBAL_VARIABLE_SCOPE[parent].eval()
+                GLOBAL_VARIABLE_SCOPE[parent].eval(phase)
             self._pool()
-            self.wait_forward = False
+            if phase == 'train':
+                self.wait_forward = False
         else:
             pass
 
@@ -158,7 +162,7 @@ class AvgPooling(Operator):
                     for i in range(0, self.X_h-self.kernel_height+1, self.stride_h):
                         for j in range(0, self.X_w-self.kernel_width+1, self.stride_w):
                             self.input_variable.diff[n, o, i:i+self.kernel_height, j:j+self.kernel_width] += \
-                            self.output_variable.diff[n, o, i//self.kernel_height, j//self.kernel_width] * scale
+                            self.output_variable.diff[n, o, i//self.stride_h, j//self.stride_w] * scale
             self.wait_forward = True
         return
 
@@ -173,4 +177,41 @@ class AvgPooling(Operator):
                             self.input_variable.data[n, o, i:i + self.kernel_height, j:j + self.kernel_width])
         self.output_variable.data = output
         return
+
+
+if __name__ == "__main__":
+    # check grad
+    shape = ([1, 1, 4, 4])
+    a = Variable(shape, 'a')
+
+    test_layer = MaxPooling([1, 1, 2, 2], a, 'test')
+    b = test_layer.output_variable
+
+    epsilon = 1e-7
+
+    a.data[0][0][0][0] -= epsilon
+    print('a[0] -eps ', a.data[0][0][0][0])
+    out1 = b.eval()
+
+    # refresh graph
+    b.wait_bp = False
+    a.wait_bp = False
+    test_layer.wait_forward = True
+
+    a.data[0][0][0][0] += 2 * epsilon
+    print('a[0] +eps ', a.data[0][0][0][0])
+    out2 = b.eval()
+
+    # refresh graph
+    b.wait_bp = False
+    a.wait_bp = False
+    test_layer.wait_forward = True
+
+    a.data[0][0][0][0] -= epsilon
+    b.eval()
+
+    b.diff = np.array([[[[1.0, 1.0, 1.0], [1.0, 1.0, 1.0], [1.0, 1.0, 1.0]]]], dtype=float)
+    print(b.diff.shape)
+    print('bp:        ', a.diff_eval())
+    print('grad_check:', (out2 - out1) / 2 / epsilon)
 

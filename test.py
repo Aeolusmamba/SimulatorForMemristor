@@ -1,7 +1,6 @@
-import numpy as np
-import torch
 import pandas as pd
+import numpy as np
 
-
-a = np.array([[[1,3,4], [1,3,4], [1,3,4]], [[1,1,4], [1,6,4], [1,3,5]]])
-print(np.sum(a, axis=(0,2)))
+a = "0010100"
+index = [i for i in range(len(a)) if list(a)[i] == "1"]
+print(index)

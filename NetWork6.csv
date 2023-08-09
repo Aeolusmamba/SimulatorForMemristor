@@ -1,0 +1,2 @@
+IFM height,IFM width,IFM channel depth,kernel height,kernel width,kernel depth,bias,BatchNorm,optimizer,activation,max pooling,avg pooling,stride,padding,comment
+7,7,1,3,3,3,0,0,SGD,,0,0,"1,1",1,

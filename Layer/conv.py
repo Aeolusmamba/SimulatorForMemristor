@@ -1,10 +1,13 @@
 import numpy as np
 from C_Graph.variable import Variable, GLOBAL_VARIABLE_SCOPE
 from C_Graph.operator import Operator
+import numba
+from numba import jit
 
 
 class Conv2D(Operator):
-    def __init__(self, kernel_shape: list, input_variable: Variable, name: str, hyper_p: dict, stride=1, padding=0, bias=False):
+    def __init__(self, kernel_shape: list, input_variable: Variable, name: str, hyper_p: dict, stride=1, padding=0,
+                 bias=False):
         # kernel_shape: [out_channel, in_channel, kernel_height, kernel_width]
         for i in kernel_shape:
             if not isinstance(i, int):
@@ -27,24 +30,24 @@ class Conv2D(Operator):
         self.X_w = self.in_shape[3]
         self.hyper_p = hyper_p
 
-        self.weight = Variable(kernel_shape, scope=name, name='weight', grad=True, learnable=True)
+        self.weight = Variable(kernel_shape, scope=name, name='weight', grad=True, learnable=True, init='const')
         if self.bias:
-            self.weight_bias = Variable([self.out_channel], scope=name, name='weight_bias', grad=True, learnable=True)
+            self.weight_bias = Variable([self.out_channel], scope=name, name='weight_bias', grad=True, learnable=True,
+                                        init='const')
 
         if stride and isinstance(stride, tuple):
             self.stride_h, self.stride_w = stride
-        elif stride and isinstance(stride, int):
+        elif stride and isinstance(stride, int) and stride >= 1:
             self.stride_w = self.stride_h = stride
         else:
             self.stride_w = self.stride_h = 1
 
         if padding and isinstance(padding, tuple):
             self.padding_h, self.padding_w = padding
-        elif padding and isinstance(padding, int):
+        elif padding and isinstance(padding, int) and padding >= 0:
             self.padding_w = self.padding_h = padding
         else:
             self.padding_h = self.padding_w = 0
-
 
         output_shape = [self.batch_size,
                         self.out_channel,
@@ -54,15 +57,16 @@ class Conv2D(Operator):
         self.input_variable = input_variable
         super(Conv2D, self).__init__(name, self.input_variable, self.output_variable)
 
-    def forward(self):
+    def forward(self, phase):
         if self.wait_forward:
             for parent in self.parent:
-                GLOBAL_VARIABLE_SCOPE[parent].eval()
+                GLOBAL_VARIABLE_SCOPE[parent].eval(phase)
             if self.bias:
                 self._conv(self.input_variable, self.output_variable, self.weight.data, self.weight_bias.data)
             else:
                 self._conv(self.input_variable, self.output_variable, self.weight.data)
-            self.wait_forward = False
+            if phase == 'train':
+                self.wait_forward = False
             # print(f"{self.name} output: ", self.output_variable.data)
             return
         else:
@@ -130,19 +134,21 @@ class Conv2D(Operator):
         # print("eta shape: ", eta.shape)
         # print("pad_width: ", (self.stride_h * (eta.shape[2] - 1) + self.kernel_height - self.X_h) // 2)
         pad_eta = np.pad(eta, ((0, 0), (0, 0),
-                               ((self.stride_h * (eta.shape[2] - 1) + self.kernel_height - self.X_h) // 2,
-                                (self.stride_h * (eta.shape[2] - 1) + self.kernel_height - self.X_h) // 2),
-                               ((self.stride_w * (eta.shape[3] - 1) + self.kernel_width - self.X_w) // 2,
-                                (self.stride_w * (eta.shape[3] - 1) + self.kernel_width - self.X_w) // 2)),
+                               ((self.stride_h * (self.X_h - 1) + self.kernel_height - eta.shape[2]) // 2,
+                                (self.stride_h * (self.X_h - 1) + self.kernel_height - eta.shape[2]) // 2),
+                               ((self.stride_w * (self.X_w - 1) + self.kernel_width - eta.shape[3]) // 2,
+                                (self.stride_w * (self.X_w - 1) + self.kernel_width - eta.shape[3]) // 2)),
                          'constant', constant_values=0)
         col_pad_eta = np.array([self.im2col(pad_eta[i]) for i in range(self.batch_size)])
+        # print(col_pad_eta.shape)  # 1,4,4
         # rotate weights 180 degree
         flipped_weight = self.rotate180(weight)
         # transpose the weight
         flipped_weight = flipped_weight.swapaxes(0, 1)  # change positions of out_channel and in_channel
         col_flip_weight = flipped_weight.reshape((self.in_channel, -1))
         # if self.name == 'conv_5':
-        #     print("col_flip_weight: ", col_flip_weight)
+        #     print("col_flip_weight.shape: ", col_flip_weight.shape)
+        #     print("col_pad_eta.shape: ", col_pad_eta.shape)
 
         next_eta = []
         for i in range(self.batch_size):
@@ -161,8 +167,8 @@ class Conv2D(Operator):
         :return col_x: with shape [((H-kernel_height) / stride_h + 1) * ((W-kernel_width) / stride_w + 1), in_channel * kernel_height * kernel_width]
         """
         col_x = []
-        for i in range(0, x.shape[1]-self.kernel_height+1, self.stride_h):
-            for j in range(0, x.shape[2]-self.kernel_width+1, self.stride_w):
+        for i in range(0, x.shape[1] - self.kernel_height + 1, self.stride_h):
+            for j in range(0, x.shape[2] - self.kernel_width + 1, self.stride_w):
                 col = x[:, i:i + self.kernel_height, j:j + self.kernel_width].reshape(
                     -1)  # C * kernel_height * kernel_width
                 # if self.name == 'conv_5':
@@ -181,13 +187,39 @@ class Conv2D(Operator):
 
 
 if __name__ == "__main__":
-    # img = np.random.standard_normal((2, 32, 32, 3))
-    img = np.ones((1, 32, 32, 3))
-    img *= 2
-    # conv = Conv2D(img.shape, 12, 3, 1)
-    # next = conv.forward(img)
-    # next1 = next.copy() + 1
-    # conv.gradient(next1 - next)
-    # print(conv.w_gradient)
-    # print(conv.b_gradient)
-    # conv.backward()
+    # check grad
+    shape = ([1, 1, 4, 4])
+    # shape = ([64, 3, 128, 128])
+    a = Variable(shape, 'a')
+
+    test_layer = Conv2D([1, 1, 2, 2], a, 'test', hyper_p={})
+    # test_layer = Conv2D([6, 3, 2, 2], a, 'test', hyper_p={}, stride=2)
+    b = test_layer.output_variable
+
+    epsilon = 1e-7
+
+    a.data[0][0][0][0] -= epsilon
+    print('a[0] -eps ', a.data[0][0][0][0])
+    out1 = b.eval()
+
+    # refresh graph
+    b.wait_bp = False
+    a.wait_bp = False
+    test_layer.wait_forward = True
+
+    a.data[0][0][0][0] += 2 * epsilon
+    print('a +eps ', a.data[0][0][0][0])
+    out2 = b.eval()
+
+    # refresh graph
+    b.wait_bp = False
+    a.wait_bp = False
+    test_layer.wait_forward = True
+
+    a.data[0][0][0][0] -= epsilon
+    b.eval()
+
+    b.diff = np.ones([1, 1, 3, 3], dtype=float)
+    # b.diff = np.ones([64, 6, 64, 64], dtype=float)
+    print('bp:        ', a.diff_eval())
+    print('grad_check:', (out2 - out1) / 2 / epsilon)

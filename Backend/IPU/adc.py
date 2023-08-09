@@ -1,0 +1,2 @@
+class ADC:
+    pass

@@ -5,13 +5,13 @@ import functools
 
 def initializer(shape, method):
     if method == 'const':
-        return np.random.standard_normal(shape) / 100
+        return np.random.standard_normal(shape) * 0.01  # * 0.01
 
     if method == 'None':
         return np.zeros(shape)
 
     if method == 'MSRA':
-        weights_scale = math.sqrt(functools.reduce(lambda x, y: x * y, shape) / shape[0])
+        weights_scale = math.sqrt(functools.reduce(lambda x, y: x * y, shape) / shape[0] / 2)
         return np.random.standard_normal(shape) / weights_scale
 
 

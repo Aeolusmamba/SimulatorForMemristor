@@ -25,10 +25,12 @@ class Operator(object):
         # register for input Variable's child and output Variable's parents
         register_graph(input_variables, output_variables, self)
 
+        self.input_variable = input_variables
+        self.output_variable = output_variables
         self.wait_forward = True
         # self.wait_backward = not self.wait_forward
 
-    def forward(self):
+    def forward(self, phase):
         pass
         # if self.wait_forward == True:
         #     1.check_parent_eval()
@@ -52,6 +54,35 @@ class Operator(object):
         #     3.set wait forward()
         #         self.wait_forward=True
         #
+
+    def check_gradient(self):
+        epsilon = 1e-5
+        output_value = self.output_variable.data
+        if isinstance(self.input_variable, list):
+            self.input_variable[0].data -= epsilon
+        else:
+            self.input_variable.data -= epsilon
+        self.wait_forward = True
+        self.forward()
+        output_1 = self.output_variable.data
+        print("output_1: ", output_1)
+        if isinstance(self.input_variable, list):
+            self.input_variable[0].data += 2 * epsilon
+        else:
+            self.input_variable.data += 2 * epsilon
+        self.wait_forward = True
+        self.forward()
+        output_2 = self.output_variable.data
+        print("output_2: ", output_2)
+        self.grad_approx = (output_2 - output_1) / (2 * epsilon)
+        # restore value
+        if isinstance(self.input_variable, list):
+            self.input_variable[0].data -= epsilon
+        else:
+            self.input_variable.data -= epsilon
+        self.wait_forward = True
+        self.forward()
+        self.output_variable.data = output_value
 
 
 def register_graph(input_variable, output_variable, operator):
