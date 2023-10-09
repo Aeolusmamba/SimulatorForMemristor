@@ -1,6 +1,6 @@
 import pandas as pd
 import numpy as np
+from functools import reduce
 
-a = "0010100"
-index = [i for i in range(len(a)) if list(a)[i] == "1"]
-print(index)
+X = [[3,3],[4,9], [3,4,5,6]]
+print(X)

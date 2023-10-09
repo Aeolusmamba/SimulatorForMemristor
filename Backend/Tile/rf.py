@@ -6,10 +6,12 @@ class RegisterFile:
     def __init__(self, data_depth=64, index_num=256, data_num=256):
         self.index_num = index_num
         self.data_num = data_num
-        self.data_depth = data_depth
+        self.data_depth = data_depth  # 寄存器位宽
         self.row_num = 256  # row num
         self.index_reg = []
         self.data_reg = []
+        self.zero_reg_id = data_num  # 零寄存器，编号从data_num开始计数，即若data_num==256，zero_reg编号为256
+        self.zero_reg_value = 0
         for i in range(index_num):
             reg = Reg(id=i)
             self.index_reg.append(reg)
@@ -18,7 +20,7 @@ class RegisterFile:
             self.data_reg.append(reg)
 
     def initDataIndexRegs(self, vector_size):
-        # index reg的值是一个64位的掩码，需要4个regs来形成一个完整的掩码
+        # index reg的值是一个64位的掩码，需要4/8/16个regs来形成一个完整的掩码
         index_reg_addrs = []
         mask = ["0"] * self.data_num  # 掩码
         # 生成掩码
@@ -44,7 +46,15 @@ class RegisterFile:
             sub_mask = ''.join(mask[i:i+self.data_depth])
             # print(f"index_temp[{i // self.data_depth}]=", index_temp[i // self.data_depth])
             self.index_reg[index_temp[i // self.data_depth]].write(sub_mask)
+        # print(index_reg_addrs)
         return index_reg_addrs
+
+    def initDataRegs(self, vector_size):
+        data_regs = []
+        for j in range(vector_size):
+            data_reg_i = self.initDataReg()
+            data_regs.append(data_reg_i)
+        return data_regs
 
     def initDataReg(self):
         for i in range(len(self.data_reg)):
@@ -52,7 +62,7 @@ class RegisterFile:
                 self.data_reg[i].used = True
                 return i
 
-    def initRowIndexRegs(self, act_rows):
+    def initRowIndexRegs(self, act_rows: list):
 
         mask = ['0'] * self.row_num
         for j in act_rows:
@@ -96,11 +106,11 @@ class RegisterFile:
         src_addr = int(src_addr, 16)
         return [self.data_reg[src_addr + i].read() for i in range(vec_width)]
 
-    def getMask(self, src):
-        # 以src为起始地址，连续4个64 bit的index regs中存的是一个完整的掩码
+    def getMask(self, src, num):
+        # 以src为起始地址，连续num个64 bit的index regs中存的是一个完整的掩码
         src = int(src, 16)
         mask = ""
-        for i in range(4):
+        for i in range(num):
             mask += self.index_reg[src+i].read()
         return mask
 

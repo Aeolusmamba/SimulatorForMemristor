@@ -80,6 +80,13 @@
             </Attribute>
           </value>
         </entry>
+        <entry key="\Backend\Chip\inst_decoder.py">
+          <value>
+            <Attribute>
+              <option name="separator" value=":" />
+            </Attribute>
+          </value>
+        </entry>
         <entry key="\Backend\Chip\pc.py">
           <value>
             <Attribute>
@@ -123,6 +130,13 @@
           </value>
         </entry>
         <entry key="\Backend\Tile\tile.py">
+          <value>
+            <Attribute>
+              <option name="separator" value=":" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\Backend\reg.py">
           <value>
             <Attribute>
               <option name="separator" value=":" />

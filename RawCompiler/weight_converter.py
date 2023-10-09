@@ -11,47 +11,7 @@ class WeightConverter:
     def getConvertedWeight(self, W: Variable, base_size) -> [Variable]:  # base_size=256 for now
         # convert to IPU-containable lists.
         converted_weight = self.convertWeight(W)
-        # check its size
-        if converted_weight.shape[0] > base_size and converted_weight.shape[1] <= base_size:
-            rows = converted_weight.shape[0]
-            sliced_weights = slice_in_row_major(converted_weight.data, rows, base_size)
-            sliced_weights_var = []
-            i = 0
-            for w in sliced_weights:
-                w_var = Variable(list(w.shape), scope=W.name + " in compiler", name="sliced_converted_w"+str(i))
-                w_var.data = w
-                sliced_weights_var.append(w_var)
-                i += 1
-            return sliced_weights_var
-        elif converted_weight.shape[0] <= base_size and converted_weight.shape[1] > base_size:
-            cols = converted_weight.shape[1]
-            sliced_weights = slice_in_col_major(converted_weight.data, cols, base_size)
-            sliced_weights_var = []
-            i = 0
-            for w in sliced_weights:
-                w_var = Variable(list(w.shape), scope=W.name + " in compiler", name="sliced_converted_w" + str(i))
-                w_var.data = w
-                sliced_weights_var.append(w_var)
-                i += 1
-            return sliced_weights_var
-        elif converted_weight.shape[0] > base_size and converted_weight.shape[1] > base_size:
-            rows = converted_weight.shape[0]
-            cols = converted_weight.shape[1]
-            row_sliced_weights = slice_in_row_major(converted_weight.data, rows, base_size)
-            sliced_weights = []  # tow dims
-            for w in row_sliced_weights:
-                col_sliced_weights = slice_in_col_major(w, cols, base_size)
-                sliced_weights.append(col_sliced_weights)
-            sliced_weights_var = []
-            index = 0
-            for i in sliced_weights:
-                for w in i:
-                    w_var = Variable(list(w.shape), scope="compiler", name="sliced_" + W.name)
-                    w_var.data = w
-                    sliced_weights_var.append(w_var)
-                    index += 1
-            return sliced_weights_var
-        return [converted_weight]
+        return converted_weight
 
     def convertWeight(self, W: Variable):
         c_W = np.reshape(W.data, (W.shape[0], -1))  # reshape weight to row_weight: [out_channel, (in_channel * kernel_height * kernel_width)]

@@ -39,3 +39,12 @@ class IPU(object):
     def dot(self, row_mask, V: list):
         V = np.array(V)
         return self.crossbar.dot(row_mask, V)
+
+    def initXBar(self, W_height, W_width):
+        return self.crossbar.initXBar(W_height, W_width)
+
+    def initXBarRep(self, W_height, W_width, replica_num):
+        return self.crossbar.initXBarRep(W_height, W_width, replica_num)
+
+    def initXBarRepOverlap(self, W_height, W_width, replica_num, offset):
+        return self.crossbar.initXBarRepOverlap(W_height, W_width, replica_num, offset)

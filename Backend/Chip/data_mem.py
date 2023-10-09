@@ -34,6 +34,7 @@ class DataMemory:
         if addr in self.memory:  # 地址有效
             return self.memory[addr]
         else:
+            print("Address is illegal!")
             return None
 
     def write(self, addr, data):  # write a word
