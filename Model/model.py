@@ -127,6 +127,30 @@ class Model():
                 self.conv_list.append(avgPool)
                 ap_cnt += 1
                 average_flag = False
+
+                # activation
+                if row['activation'] == 'relu':
+                    activation = ReLU(input_variable=in_out, name=name + '_relu')
+                    in_out = activation.output_variable
+                elif row['activation'] == 'lrelu':
+                    activation = LReLU(input_variable=in_out, name=name + '_lrelu')
+                    in_out = activation.output_variable
+                elif row['activation'] == 'elu':
+                    activation = ELU(input_variable=in_out, name=name + '_elu')
+                    in_out = activation.output_variable
+                elif row['activation'] == 'prelu':
+                    activation = PReLU(input_variable=in_out, name=name + '_prelu')
+                    in_out = activation.output_variable
+                elif row['activation'] == 'sigmoid':
+                    activation = Sigmoid(input_variable=in_out, name=name + '_sigmoid')
+                    in_out = activation.output_variable
+                elif row['activation'] == 'tanh':
+                    activation = Tanh(input_variable=in_out, name=name + '_tanh')
+                    in_out = activation.output_variable
+                else:
+                    activation = None
+                if activation:
+                    self.conv_list.append(activation)
             else:  # which is a conv layer
                 kernel_shape = [row['kernel depth'], row['IFM channel depth'], row['kernel height'],
                                 row['kernel width']]
@@ -217,6 +241,7 @@ class Model():
             # if "relu" not in linear.name:
             #     print(f"weight of {linear.name}: ", linear.weight.data)
             linear.forward(phase)
+
         return self.linear_list[-1].output_variable
 
     def back_propagation(self):
@@ -235,6 +260,8 @@ class Model():
         for k in GLOBAL_VARIABLE_SCOPE:
             s = GLOBAL_VARIABLE_SCOPE[k]
             if isinstance(s, Variable) and s.learnable:
-                s.update(learning_rate=self.hyper_p['lr'], decay_rate=self.hyper_p['dr'], batch_size=self.batch_size)
+                s.update(learning_rate=self.hyper_p['lr'], decay_rate=self.hyper_p['dr'],
+                         nonlinearityLTP=self.hyper_p['nonlinearityLTP'], nonlinearityLTD=self.hyper_p['nonlinearityLTD'],
+                         c2cVari = self.hyper_p['c2cVari'], batch_size=self.batch_size)
             if isinstance(s, Variable) and s.grad:
                 s.diff = np.zeros(s.shape)  # reset diff, can be separated for gradient accumulation

@@ -101,6 +101,13 @@
             </Attribute>
           </value>
         </entry>
+        <entry key="\Backend\Evaluator\static.py">
+          <value>
+            <Attribute>
+              <option name="separator" value=":" />
+            </Attribute>
+          </value>
+        </entry>
         <entry key="\Backend\IPU\ipu.py">
           <value>
             <Attribute>
@@ -283,6 +290,13 @@
             </Attribute>
           </value>
         </entry>
+        <entry key="\NetWork7.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
         <entry key="\PythonWrapper_Output.csv">
           <value>
             <Attribute>
@@ -361,6 +375,13 @@
           </value>
         </entry>
         <entry key="\test.py">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\test2.py">
           <value>
             <Attribute>
               <option name="separator" value="," />

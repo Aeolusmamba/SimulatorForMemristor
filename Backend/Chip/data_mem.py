@@ -39,3 +39,4 @@ class DataMemory:
 
     def write(self, addr, data):  # write a word
         self.memory[addr] = data
+

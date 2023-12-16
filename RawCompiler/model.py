@@ -13,6 +13,7 @@ from C_Graph.operator import Operator
 from weight_converter import WeightConverter
 from data_converter import ConvDataConverter, LinearDataConverter
 import copy
+from Backend.Evaluator.static import Evaluator
 
 
 class ModelImpl():
@@ -32,6 +33,7 @@ class ModelImpl():
     instruction = {}
     istart_addr = {}
     iend_addr = {}
+    evaluator = Evaluator()
 
     def __init__(self, file_path):
         if not os.path.exists(file_path):
@@ -620,6 +622,9 @@ class ModelImpl():
 
         return result
 
+    def displayResource(self):
+        self.chip.resourceManager()
+
 
 if __name__ == "__main__":
     # make some data
@@ -633,3 +638,16 @@ if __name__ == "__main__":
     result = np.reshape(result, (64, 50, 15, 15))
     print(f"Result: {result}")
     print(f"Shape of result: {result.shape}")
+
+    # demonstration of resource usage
+    model.displayResource()
+
+    # energy evaluation
+    in_channels = [1, 9]
+    out_channels = [9, 50]
+    in_dims = [28, 28]
+    out_dims = [28, 15]
+    kernel_sizes = [3, 2]
+
+    model.evaluator.compute_energy(in_channels, out_channels, in_dims, out_dims, kernel_sizes, 256, "SRAM")
+    model.evaluator.compute_area(in_channels, in_dims, out_channels, out_dims, 4, 256, kernel_sizes, 256, "SRAM")

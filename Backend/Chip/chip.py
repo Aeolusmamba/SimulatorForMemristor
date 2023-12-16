@@ -21,9 +21,11 @@ class Chip:
         self.instDecoder = InstructionDecoder()
         self.pc = PC(inst_depth=64)
         self.dataMemory = DataMemory()  # 4GB，32位二进制地址 = 8位十六进制地址
+        self.dmem_capacity = 4 * 1024 * 1024 * 1024
         self.accumulator = Accumulator()
         self.dmem_ptr = 0  # 数据内存指针，按字节编址，32位地址，十六进制字符串形式存储（8位）
         self.imem_ptr = 0  # 指令内存指针，按字节编址，32位地址，十六进制字符串形式存储（8位）
+        self.tile_num = tile_num
         self.tile_usage = []  # tile使用表，tile_usage[i]=1 代表tile_id=i的tile被使用了
         self.used = False  # 当且仅当 tile_usage[i]=1 for i=0~n-1 时used=True
         self.dmem_input_table = {}  # data memory的”输入层“数据地址索引表，键：sample的唯一标识（暂时为batch_i），值：该sample的起始地址
@@ -347,3 +349,41 @@ class Chip:
             self.pc.step()
         print("Execution finished!")
         return np.array(result)
+
+    def resourceManager(self):
+        tile_used = 0
+        IPU_used = 0
+        buffer_usage = []
+        for t in self.tile_list:
+            # tile usage
+            if t.used:
+                tile_used += 1
+            # IPU usage
+            for i in t.IPU_usage:
+                if i == 1:
+                    IPU_used += 1
+            # buffer usage
+            buffer_usage.append([t.bf_ptr, t.buffer_capacity])
+
+        # data memory usage
+        dmem_used = [self.dmem_ptr, self.dmem_capacity]
+
+        # display
+        print(f"tile usage: {tile_used} / {self.tile_num} \n")
+        print(f"IPU usage: {IPU_used} / {self.tile_num * 4} \n")
+        print(f"data memory usage: {dmem_used[0]} B / {dmem_used[1]} B ({dmem_used[1] // (1024 ** 3)} GB) \n")
+        print(f"buffer usage: \n")
+        # matrix display
+        h_t = int(self.tile_num ** 0.5)
+        print("[", end='')
+        for i in range(h_t):
+            print("[", end='')
+            for j in range(h_t):
+                used, cap = buffer_usage[i * h_t + j]
+                print(f" {used} B / {cap} B ({cap // (1024 ** 2)} MB) ", end='')
+                if j != h_t - 1:
+                    print(",", end='')
+            print("]", end='')
+            if i != h_t - 1:
+                print("\n")
+        print("]")

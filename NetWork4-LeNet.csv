@@ -1,0 +1,8 @@
+IFM height,IFM width,IFM channel depth,kernel height,kernel width,kernel depth,bias,BatchNorm,optimizer,activation,max pooling,avg pooling,stride,padding,comment
+28,28,1,5,5,6,0,0,SGD,tanh,0,1,1,0,
+24,24,6,2,2,6,0,0,SGD,,0,0,2,0,avg-pooling layer
+12,12,6,5,5,16,0,0,SGD,tanh,0,1,1,0,
+8,8,16,2,2,16,0,0,SGD,,0,0,2,0,avg-pooling layer
+4,4,16,4,4,120,0,0,SGD,tanh,0,0,1,0,
+1,1,120,1,1,84,1,1,SGD,tanh,0,0,0,0,fully-connected
+1,1,84,1,1,10,1,1,SGD,,0,0,0,0,fully-connected

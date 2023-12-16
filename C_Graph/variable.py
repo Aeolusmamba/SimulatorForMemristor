@@ -56,10 +56,11 @@ class Variable(object):
             pass
         return self.diff
 
-    def update(self, learning_rate:float, decay_rate:float, batch_size=1):
+    def update(self, learning_rate:float, decay_rate:float, nonlinearityLTP, nonlinearityLTD, c2cVari, batch_size=1):
         self.data *= (1 - decay_rate)  # L2 regularization
         if self.method == 'SGD':
-            self.data -= (learning_rate * self.diff / batch_size)
+            delta = (learning_rate * self.diff / batch_size)
+            self.data -= delta
 
         elif self.method == 'Momentum':
             self.mtmp = self.momentum * self.mtmp + self.diff / batch_size

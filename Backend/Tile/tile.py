@@ -15,6 +15,7 @@ class Tile:
         self.id = id
         self.rf = RegisterFile(data_depth=64, index_num=256, data_num=1024)
         self.buffer = Buffer(data_depth=64)  # 本地缓存1MB, 20位二进制地址 = 5位十六进制地址
+        self.buffer_capacity = 1024 * 1024
         self.bf_ptr = 0  # 本地缓存指针，按字节编址，5位十六进制
         self.IPU_list = []
         self.op_code = []
